@@ -1,0 +1,49 @@
+version: '3'
+services:
+    reverse-proxy:
+        image: traefik:v2.2
+        command: --api.insecure=true --api.dashboard=true --providers.docker
+        privileged: true
+        ports:
+          - "80:80"
+          - "8080:8080"
+        volumes:
+          - "/var/run/docker.sock:/var/run/docker.sock:ro"
+
+    api_tmpfiles:
+        container_name: "api_tmpfiles"
+        image: "tmpfiles-api"
+        build: 
+            context: ./
+            dockerfile: ./dev/Dockerfile-api_tmpfiles
+        restart: unless-stopped
+        command: air -c ./dev/air.toml
+        volumes: 
+            - ./:/usr/src/app
+        working_dir: /usr/src/app
+        ports: 
+            - "4000"
+        environment: 
+            - TZ=Europe/Paris
+        labels:
+            - "traefik.http.routers.api_tmpfiles.rule=PathPrefix(`/meta`, `/download`, `/d`, `/upload`, `/status`, `/auth`, `/cache`)"
+            - "traefik.http.services.api_tmpfiles.loadbalancer.server.port=3000"
+
+    web_tmpfiles:
+        container_name: "web_tmpfiles"
+        image: "tmpfiles-web"
+        build: 
+            context: ./
+            dockerfile: ./dev/Dockerfile-web_tmpfiles
+        restart: unless-stopped
+        command: yarn serve
+        volumes: 
+            - ./client:/usr/src/app
+        working_dir: /usr/src/app
+        ports: 
+            - "80"
+        environment: 
+            - TZ=Europe/Paris
+        labels:
+            - "traefik.http.routers.web_tmpfiles.rule=PathPrefix(`/`)"
+            - "traefik.http.services.web_tmpfiles.loadbalancer.server.port=80"
