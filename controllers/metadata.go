@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strings"
 
@@ -20,8 +21,8 @@ func (state *metaRender) toJSON() []byte {
 	return dataByte
 }
 
-// GetMeta : Handle for get metadata upload or files
-func (state *Controller) GetMeta(w http.ResponseWriter, r *http.Request) {
+// MetadataManager : Handle for get metadata upload or files
+func (state *Controller) MetadataManager(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	uploadID := vars["id"]
 
@@ -39,18 +40,23 @@ func (state *Controller) GetMeta(w http.ResponseWriter, r *http.Request) {
 
 	if upload.Auth {
 		authorization := r.Header.Get("Authorization")
+		log.Println(authorization, "toto")
 		if authorization == "" {
 			renderError(w, http.StatusUnauthorized)
 			return
 		}
 
-		token := strings.Split(authorization, " ")[1]
-		if token == "" {
+		authArray := strings.Split(authorization, " ")
+		if len(authArray) != 2 {
+			renderError(w, http.StatusUnauthorized)
+			return
+		}
+		if authArray[1] == "" {
 			renderError(w, http.StatusUnauthorized)
 			return
 		}
 
-		id := state.auth.GetIDFromToken(token)
+		id := state.auth.GetIDFromToken(authArray[1])
 		if id != uploadID {
 			renderError(w, http.StatusUnauthorized)
 			return

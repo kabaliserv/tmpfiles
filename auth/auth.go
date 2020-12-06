@@ -31,7 +31,6 @@ func (state *Data) GetIDFromToken(token string) string {
 
 func parseToken(tokenString string, secret []byte) *uploadClaims {
 
-	log.Println(tokenString)
 
 	token, err := jwt.ParseWithClaims(tokenString, &uploadClaims{}, func(token *jwt.Token) (interface{}, error) {
 		// Don't forget to validate the alg is what you expect:
@@ -60,7 +59,7 @@ func (state *Data) GenerateNewTokenWithID(id string) (string, error) {
 	claims := uploadClaims{
 		id,
 		jwt.StandardClaims{
-			ExpiresAt: time.Now().Add(time.Hour * time.Duration(1)).Unix(),
+			ExpiresAt: time.Now().Add(time.Minute * time.Duration(10)).Unix(),
 			IssuedAt:  time.Now().Unix(),
 			Issuer:    "test",
 		},

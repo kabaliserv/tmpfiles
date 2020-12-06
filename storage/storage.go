@@ -1,69 +1,94 @@
 package storage
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+
+	"github.com/kabaliserv/tmpfiles/config"
+
+	"golang.org/x/sys/unix"
 )
 
-// Store struct
-type Store struct {
+// Stores struct
+type Stores struct {
 	data, files, cache string
 }
 
-// NewStore : Make Store with path directory
-func NewStore(path string) (*Store, error) {
+var path Stores
 
-	// Get absolute path
-	absPath, err := filepath.Abs(path)
-	if err != nil {
-		log.Print(err)
+// Init : Make Store with config path directory
+func Init() error {
+
+	if !dirIsWritable(config.GetStorePath()) {
+		return fmt.Errorf("Store directory is not writable")
 	}
 
-	if _, err := os.Stat(absPath); err != nil {
-		return nil, err
-		// log.Fatal("Directory: ", absPath, " NOT FOUND")
+	path = Stores{
+		data:  ifIsNotExistMakeDirectory("data"),
+		files: ifIsNotExistMakeDirectory("files"),
+		cache: ifIsNotExistMakeDirectory("cache"),
+	}
+	errText := "directory is not writable"
+	if !dirIsWritable(path.data) {
+		return fmt.Errorf("data ", errText)
+	}
+	if !dirIsWritable(path.files) {
+		return fmt.Errorf("files ", errText)
+	}
+	if !dirIsWritable(path.cache) {
+		return fmt.Errorf("cache ", errText)
 	}
 
-	var gerr error
+	return nil
+}
 
-	data := filepath.Join(absPath, "data")
-	if _, err := os.Stat(data); err != nil {
-		gerr = os.Mkdir(data, 0700)
+func ifIsNotExistMakeDirectory(path string) string {
+	dir := filepath.Join(config.GetStorePath(), path)
+	if _, err := os.Stat(dir); err != nil {
+		_ = os.Mkdir(dir, 0700)
 	}
+	return dir
+}
 
-	files := filepath.Join(absPath, "files")
-	if _, err := os.Stat(files); err != nil {
-		gerr = os.Mkdir(files, 0700)
-	}
+func dirIsWritable(path string) bool {
+	return unix.Access(path, unix.W_OK) == nil
+}
 
-	cache := filepath.Join(absPath, "cache")
-	if _, err := os.Stat(cache); err != nil {
-		gerr = os.Mkdir(cache, 0700)
-	}
-
-	if gerr != nil {
-		return nil, gerr
-	}
-
-	return &Store{
-		data:  data,
-		files: files,
-		cache: cache,
-	}, nil
+// GetStore :
+func GetStore() *Stores {
+	return &path
 }
 
 // GetDataPath :
-func (state *Store) GetDataPath() string {
+func (state *Stores) GetDataPath() string {
 	return state.data
 }
 
 // GetFilesPath :
-func (state *Store) GetFilesPath() string {
+func (state *Stores) GetFilesPath() string {
 	return state.files
 }
 
 // GetCachePath :
-func (state *Store) GetCachePath() string {
+func (state *Stores) GetCachePath() string {
 	return state.cache
+}
+
+// deleteFileFromStore : deletion according to store
+func (state *Stores) deleteFileFromStore(store, fileName string) error {
+	var path string
+	switch store {
+	case "cache":
+		path = filepath.Join(state.cache, fileName)
+	case "files":
+		path = filepath.Join(state.files, fileName)
+	}
+	log.Println(path)
+	if err := os.Remove(path); err != nil {
+		log.Println(err)
+		return err
+	}
+	return nil
 }

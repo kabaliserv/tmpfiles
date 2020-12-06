@@ -13,8 +13,15 @@ declare namespace TMPFiles {
       
   }
 
+  export interface UploadOptions {
+    auth: boolean;
+    password: string;
+    expire: number;
+    filesid?: Array<string>;
+  }
+
   export interface FileInfo {
-    id: string;
+    id: string
     name: string;
     type: string;
     size: number;

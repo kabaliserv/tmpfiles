@@ -11,23 +11,17 @@ import (
 
 // FormUpload struct
 type formUpload struct {
-	Password string     `json:"password"`
-	Expire   ExpireData `json:"expire"`
-	FilesID  []string   `json:"filesid"`
+	Auth     bool     `json:"auth"`
+	Password string   `json:"password"`
+	Expire   int      `json:"expire"` // (0 = 5min), (1 = 10min), (2 = 1h), (3 = 6h), (4 = 1j), (5 = 3j)
+	FilesID  []string `json:"filesid"`
 }
 
-// ExpireData struct
-type ExpireData struct {
-	Time string `json:"time"`
-	Val  int    `json:"val"`
-}
-
-// PostUploads : Add Upload Handle
-func (state *Controller) PostUploads(w http.ResponseWriter, r *http.Request) {
+// UploadManager : Add Upload Handle
+func (state *Controller) UploadManager(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("content-type") != "application/json" {
 		renderError(w, http.StatusBadRequest)
 		return
-
 	}
 
 	var form formUpload
@@ -38,10 +32,19 @@ func (state *Controller) PostUploads(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	upload := &models.Upload{}
+	for _, v := range form.FilesID {
+		if !state.stores.CacheFileHasExist(v) {
+			renderError(w, http.StatusBadRequest)
+			return
+		}
+	}
 
-	upload.Password = form.Password
-	upload.ExpireAt = makeTimeWithExpireData(&form.Expire)
+	upload := &models.Upload{}
+	if form.Auth {
+		upload.Auth = true
+		upload.Password = form.Password
+	}
+	upload.ExpireAt = makeTimeWithExpireData(form.Expire)
 
 	if err := state.upload.AddUpload(upload); err != nil {
 		renderError(w, http.StatusInternalServerError)
@@ -49,7 +52,7 @@ func (state *Controller) PostUploads(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, v := range form.FilesID {
-		file, err := state.store.CacheGetMeta(v)
+		file, err := state.stores.CacheGetMeta(v)
 		if err != nil {
 			renderError(w, http.StatusInternalServerError)
 			return
@@ -61,12 +64,12 @@ func (state *Controller) PostUploads(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if err := state.store.FileMoveFromCache(v, file.FileID); err != nil {
+		if err := state.stores.FileMoveFromCache(v, file.FileID); err != nil {
 			renderError(w, http.StatusInternalServerError)
 			return
 		}
 
-		if err := state.store.CacheRemoveFileInfo(v); err != nil {
+		if err := state.stores.CacheRemoveFileInfo(v); err != nil {
 			renderError(w, http.StatusInternalServerError)
 			return
 		}
@@ -75,29 +78,20 @@ func (state *Controller) PostUploads(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(upload.UploadID))
 }
 
-func makeTimeWithExpireData(expire *ExpireData) time.Time {
-	type minMax struct {
-		Min int
-		Max int
-	}
-	var conf = map[string]minMax{
-		"minute": minMax{Min: 5, Max: 59},
-		"hour":   minMax{Min: 1, Max: 23},
-		"day":    minMax{Min: 1, Max: 7},
+func makeTimeWithExpireData(expire int) time.Time {
+
+	switch expire {
+	case 1:
+		return time.Now().Add(time.Duration(10) * time.Minute)
+	case 2:
+		return time.Now().Add(time.Duration(1) * time.Hour)
+	case 3:
+		return time.Now().Add(time.Duration(6) * time.Hour)
+	case 4:
+		return time.Now().Add(time.Duration(1) * time.Hour * 24)
+	case 5:
+		return time.Now().Add(time.Duration(3) * time.Hour * 24)
 	}
 
-	if conf[expire.Time] == (minMax{0, 0}) || expire.Val < conf[expire.Time].Min || expire.Val > conf[expire.Time].Max {
-		return time.Now().Add(5 * time.Minute)
-	}
-
-	switch expire.Time {
-	case "minute":
-		return time.Now().Add(time.Duration(expire.Val) * time.Minute)
-	case "hour":
-		return time.Now().Add(time.Duration(expire.Val) * time.Hour)
-	case "day":
-		return time.Now().Add(time.Duration(expire.Val) * 24 * time.Hour)
-	}
-
-	return time.Now().Add(5 * time.Minute)
+	return time.Now().Add(time.Duration(5) * time.Minute)
 }

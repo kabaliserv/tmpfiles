@@ -31,12 +31,9 @@ services:
 
     web_tmpfiles:
         container_name: "web_tmpfiles"
-        image: "tmpfiles-web"
-        build: 
-            context: ./
-            dockerfile: ./dev/Dockerfile-web_tmpfiles
+        image: "node:14.9.0"
         restart: unless-stopped
-        command: yarn serve
+        command: npm run serve
         volumes: 
             - ./client:/usr/src/app
         working_dir: /usr/src/app
@@ -44,6 +41,7 @@ services:
             - "80"
         environment: 
             - TZ=Europe/Paris
+            - CHOKIDAR_USEPOLLING=true
         labels:
             - "traefik.http.routers.web_tmpfiles.rule=PathPrefix(`/`)"
             - "traefik.http.services.web_tmpfiles.loadbalancer.server.port=80"

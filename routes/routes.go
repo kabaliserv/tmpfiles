@@ -2,50 +2,50 @@ package routes
 
 import (
 	"fmt"
+	"io"
+	"net/http"
 	"strings"
 
 	"github.com/kabaliserv/tmpfiles/controllers"
 
+	"github.com/gobuffalo/packr"
 	"github.com/gorilla/mux"
 )
 
-// NewRoutes :
-func NewRoutes(controllers *controllers.Controller) *mux.Router {
+// Init : add new routes on router
+func Init() *mux.Router {
+	var router = mux.NewRouter()
 
-	router := mux.NewRouter()
-
-	//u := router.PathPrefix("/upload").Subrouter()
-
-	// Upload Route: Use for post new Upload
-	router.HandleFunc("/upload", controllers.PostUploads).Methods("POST")
-	router.PathPrefix("/cache").Handler(controllers.NewCacheUpload("toto"))
-
-	return router
-}
-
-// AddRoutes :
-func AddRoutes(router *mux.Router, controllers *controllers.Controller) {
-
-	//u := router.PathPrefix("/upload").Subrouter()
-
-	// Get Root Path url
-	url, err := router.Get("rootpath").URLPath()
-
-	// Upload Route: Use for post new Upload
-	router.HandleFunc("/upload", controllers.PostUploads).Methods("POST")
-	router.PathPrefix("/upload/cache/").Handler(controllers.NewCacheUpload(url.Path))
-
-	// Meta Route: Use to get metadata files
-	router.HandleFunc("/meta/{id}", controllers.GetMeta).Methods("GET")
-
-	// Auth Route: Use to get Token
-	router.HandleFunc("/auth", controllers.GetAuth).Methods("POST")
+	managers := controllers.GetManagers()
 
 	// Download Route: Use to download files
-	router.HandleFunc("/d/{id}", controllers.GetFiles).Methods("GET")
+	router.HandleFunc("/d/{id}", managers.DownloadManager).Methods("GET")
+
+	// Make Path for api reqiest
+	r := router.PathPrefix("/api/").Name("apipath").Subrouter()
+
+	// Upload Route: Use for post new Upload
+	r.HandleFunc("/upload", managers.UploadManager).Methods("POST")
+	r.PathPrefix("/upload/cache/").Handler(managers.InitTusServer())
+
+	// Meta Route: Use to get metadata files
+	r.HandleFunc("/meta/{id}", managers.MetadataManager).Methods("GET")
+
+	// Auth Route: Use to get Token
+	r.HandleFunc("/auth", managers.AuthManager).Methods("POST")
+
+	// static assets & 404 handler
+	box := packr.NewBox("../client/dist")
+	router.Path("/").Handler(http.FileServer(box))
+	router.Path("/index.html").Handler(serverFile(&box, "/index.html"))
+	router.Path("/favicon.ico").Handler(serverFile(&box, "/favicon.ico"))
+	router.PathPrefix("/css").Handler(http.FileServer(box))
+	router.PathPrefix("/font").Handler(http.FileServer(box))
+	router.PathPrefix("/js").Handler(http.FileServer(box))
+	router.NotFoundHandler = notFoundPath(&box)
 
 	// Enumeration of all the routes
-	err = router.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+	if err := router.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
 		pathTemplate, err := route.GetPathTemplate()
 		if err == nil {
 			fmt.Println("ROUTE:", pathTemplate)
@@ -66,11 +66,43 @@ func AddRoutes(router *mux.Router, controllers *controllers.Controller) {
 		if err == nil {
 			fmt.Println("Methods:", strings.Join(methods, ","))
 		}
-		fmt.Println()
-		return nil
-	})
 
-	if err != nil {
+		fmt.Println()
+
+		return nil
+
+	}); err != nil {
+
 		fmt.Println(err)
+
 	}
+
+	return router
+}
+
+func notFoundPath(box *packr.Box) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		file, err := box.Open("/index.html")
+		if err != nil {
+			w.WriteHeader(500)
+			return
+		}
+		defer file.Close()
+		w.WriteHeader(200)
+		io.Copy(w, file)
+
+	})
+}
+
+func serverFile(box *packr.Box, filename string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		file, err := box.Open(filename)
+		if err != nil {
+			w.WriteHeader(500)
+			return
+		}
+		defer file.Close()
+		w.WriteHeader(200)
+		io.Copy(w, file)
+	})
 }

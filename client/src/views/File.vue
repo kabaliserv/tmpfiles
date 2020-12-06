@@ -1,128 +1,134 @@
 <template>
-    <div>
-        <div class="file-container" v-if="existUpload && authValid">
-            <Tree :files="treeFiles" @download-query="downloadFile" @meta-query="getMetaFile" />
-            <Meta :file="meta" />
+  <div class="download-backgound" v-loading="processAuth">
+    <div class="download-layout" v-if="initialize && !err404">
+      <div v-if="!auth">
+        <DownloadManagerComponent :meta="meta" @download="startDownload" />
+      </div>
+      <div class="auth-layout" v-show="auth">
+        <el-input
+          placeholder="Mot de passe"
+          v-model="password"
+          show-password
+          autofocus
+          ref="inputpassword"
+          @keyup.enter.native="getAuth"
+        >
+        </el-input>
+        <div class="auth-action">
+          <el-button
+            type="primary"
+            icon="el-icon-arrow-right"
+            round
+            :disabled="password === '' || processAuth"
+            @click="getAuth"
+          ></el-button>
         </div>
-        <NotFound v-if="!existUpload" />
-        <Auth v-if="requireAuth && !authValid" @sucess-auth="authSucess" />
+      </div>
     </div>
+    <NotFound v-if="err404"/>
+  </div>
 </template>
 
 <script lang="ts">
 import { Component, Vue } from "vue-property-decorator";
-import Axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from "axios";
-import jwt_decode from "jwt-decode";
-
-//Components
-import Tree from "@/components/Files/Tree.vue";
-import Meta from "@/components/Files/Meta.vue";
-import NotFound from "@/components/NotFound.vue";
-import Auth from "@/components/Auth.vue";
-
+import DownloadManagerComponent from "@/components/DownloadManager.vue";
+import { GetMeta, GetAuth, Token } from "@/services/download-manager";
+import NotFound from '@/views/Errors/NotFound.vue';
 
 @Component({
-    components: {
-        Tree,
-        Meta,
-        NotFound,
-        Auth,
-    },
+  components: {
+    DownloadManagerComponent,
+    NotFound,
+  },
 })
-export default class File extends Vue {
-    // Status Upload
-    existUpload: boolean = true;
-    requireAuth: boolean = false;
+export default class FileView extends Vue {
+  $refs!: {
+    inputpassword: HTMLFormElement;
+  };
+  initialize = false;
+  auth = false;
+  uploadAuth = false
+  password = "";
+  errPassword = false;
+  processAuth = false;
+  meta!: TMPFiles.FileInfo;
+  uploadID = this.$route.params.id;
 
-    // Auth
-    authValid: boolean = false;
-    uploadToken: string = "";
-    authError: object = {
-        password: false,
-    };
+  err404 = false
 
-    // Upload
-    uploadID: string = this.$route.params.id;
-
-    // Tree
-    treeFiles: Array<TMPFiles.FileInfo> = [];
-    // Meta
-    meta: TMPFiles.FileInfo
-
-    caca: string
-
-
-    created() {
-        Axios.interceptors.request.use(
-            (config) => {
-                if (this.uploadToken) {
-                    config.headers.Authorization = `Bearer ${this.uploadToken}`;
-                }
-                return config;
-            },
-            (err) => {
-                return Promise.reject(err);
-            }
-        );
+  async mounted() {
+    //InitInterceptor()
+    try {
+      const response = await GetMeta(this.uploadID);
+      this.auth = false;
+      this.meta = response.data.files[0];
+    } catch (err) {
+      if (err.response.status === 404) {
+        this.err404 = true
+      }
+      if (err.response.status === 401) {
+        this.auth = true;
+        this.uploadAuth = true
+        this.$nextTick(() => {
+          this.$refs.inputpassword.focus();
+        });
+      }
     }
+    this.initialize = true;
+  }
 
-    async beforeMount(): Promise<any> {
-        try {
-            console.log("toto");
-            this.treeFiles = await this.getMetaFiles();
-            this.authValid = true;
-            console.log(this.treeFiles);
-        } catch (err) {
-            if (err.response.status === 404) {
-                this.existUpload = false;
-            }
-            if (err.response.status === 401) {
-                this.requireAuth = true;
-                this.authValid = false;
-                console.log(err.response.status);
-            }
-        }
+  async getAuth() {
+    if (this.password === "") return
+    const auth = await GetAuth(this.uploadID, this.password);
+    if (auth) {
+      const response = await GetMeta(this.uploadID);
+      this.auth = false;
+      this.meta = response.data.files[0];
+      return;
+    } else {
+      this.$notify.error({
+        title: "Error",
+        message: "Mot de passe incorect",
+      });
     }
-    async getMetaFiles(): Promise<any> {
-        const response = await Axios.get("../meta/" + this.uploadID);
-        this.getMetaFile(response.data.files[0].id)
-        return response.data.files;
-    }
+  }
 
-    async authSucess(token: string): Promise<any> {
-        this.uploadToken = token;
-        this.treeFiles = await this.getMetaFiles();
-        this.authValid = true;
+  startDownload() {
+    const link = document.createElement("a")
+    link.href = `http://${location.host}/d/${this.uploadID}?f=${this.meta.id}`
+    if (this.uploadAuth) {
+      link.href += `&token=${Token}`
     }
-
-    validateToken(): boolean {
-        if (this.uploadToken) {
-            let decode: any = jwt_decode(this.uploadToken);
-            if (decode.exp < decode.iat) return false;
-        }
-        return true;
-    }
-
-    downloadFile(id: string) {
-        let link = document.createElement("a");
-        let url = `../d/${this.uploadID}?f=${id}`;
-        if (this.uploadToken) {
-            if (!this.validateToken()) {
-                this.authValid = false;
-                this.requireAuth = true;
-                return;
-            }
-            url += `&t=${this.uploadToken}`;
-        }
-        link.href = url;
-        link.click();
-    }
-
-    getMetaFile(id: string): void {
-        this.meta = this.treeFiles.filter((file: TMPFiles.FileInfo) => file.id === id)[0]
-    }
+    link.click()
+  }
 }
 </script>
 
 <style lang="scss" scoped>
+.download-backgound {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  width: 100%;
+  top: 0;
+  left: 0;
+  box-sizing: border-box;
+}
+
+.download-layout {
+  padding: 20px;
+  max-width: 700px;
+  border-radius: 20px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 5px 5px 5px 0px rgba(0, 0, 255, 0.2);
+}
+
+.auth-layout {
+  display: flex;
+  flex-direction: row;
+  & > .auth-action {
+    margin: 0 0 0 25px;
+  }
+}
 </style>

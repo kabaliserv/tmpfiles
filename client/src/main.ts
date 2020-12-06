@@ -1,22 +1,21 @@
-import Vue from 'vue'
-import App from './App.vue'
-import router from './router'
-import VueRx from 'vue-rx'
+import Vue from "vue";
+import ElementUI from 'element-ui';
+import 'element-ui/lib/theme-chalk/index.css';
+import App from "./App.vue";
+import router from "./router";
+import { library } from '@fortawesome/fontawesome-svg-core'
+import { faUpload } from '@fortawesome/free-solid-svg-icons'
+import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
+ 
+library.add(faUpload)
+ 
+Vue.component('font-awesome-icon', FontAwesomeIcon)
 
-// Filters
-import './filters/size'
+Vue.config.productionTip = false;
 
-// Plugins
-import vuetify from './plugins/vuetify';
-
-// Style
-
-
-Vue.use(VueRx)
-Vue.config.productionTip = false
+Vue.use(ElementUI);
 
 new Vue({
   router,
-  vuetify,
   render: h => h(App)
-}).$mount('#app')
+}).$mount("#app");

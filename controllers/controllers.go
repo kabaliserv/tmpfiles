@@ -10,22 +10,24 @@ import (
 type Controller struct {
 	upload *models.UploadManager
 	file   *models.FileManager
-	store  *storage.Store
+	stores  *storage.Stores
 	auth   *auth.Data
 }
 
-// NewController : Get new controller for use handle with http
-func NewController(store *storage.Store, db *models.DB) *Controller {
+var manager *Controller
 
-	uploadmgr, _ := models.NewUploadManager(db)
-	filemgr, _ := models.NewFileManager(db)
-
+// Init : create new controller for use handle with http
+func Init() {
 	authmgr := &auth.Data{Secret: []byte("hzbeeursygfrhbxiugqyeibfqfdhsqkjuhfd")}
-
-	return &Controller{
-		upload: uploadmgr,
-		file:   filemgr,
-		store:  store,
+	manager =  &Controller{
+		upload: models.GetUploadManager(),
+		file:   models.GetFileManager(),
+		stores:  storage.GetStore(),
 		auth:   authmgr,
 	}
+}
+
+// GetManagers :
+func GetManagers() *Controller {
+	return manager
 }

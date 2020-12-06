@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"path/filepath"
 	"time"
@@ -10,11 +9,11 @@ import (
 	"github.com/kabaliserv/tmpfiles/config"
 	"github.com/kabaliserv/tmpfiles/controllers"
 	"github.com/kabaliserv/tmpfiles/models"
+	"github.com/kabaliserv/tmpfiles/modules/clean"
+	"github.com/kabaliserv/tmpfiles/modules/scheduler"
 	"github.com/kabaliserv/tmpfiles/routes"
 	"github.com/kabaliserv/tmpfiles/storage"
 
-	"github.com/BurntSushi/toml"
-	"github.com/gorilla/mux"
 	"github.com/urfave/cli/v2"
 )
 
@@ -33,78 +32,66 @@ var (
 // App start function
 func startApp(c *cli.Context) error {
 
-	// Get Conf Arg
-	pathConf, _ := filepath.Abs(c.String("conf"))
+	if err := initializedAPP(c.String("conf")); err != nil {
+		panic(err)
+	}	
 
-	// Get Config file to array bytes
-	src, err := ioutil.ReadFile(pathConf)
-	if err != nil {
-		return err
-	}
-
-	// Parse Config file
-	conf := config.Conf{}
-	err = toml.Unmarshal(src, &conf)
-	if err != nil {
-		return err
-	}
-	if err := conf.Store.Valid(); err != nil {
-		return err
-	}
-
-	// Parse and get listen address from config
-	var listenAddress string
-	if conf.Web.Address == "" {
-		listenAddress += "localhost"
-	} else {
-		listenAddress += conf.Web.Address
-	}
-	if conf.Web.Port == 0 {
-		listenAddress += fmt.Sprintf(":%v", "3000")
-	} else {
-		listenAddress += fmt.Sprintf(":%v", conf.Web.Port)
-	}
-
-	// init New Store Files
-	store, err := storage.NewStore(conf.Store.Path)
-	if err != nil {
-		return err
-	}
-
-	// Get DataBase
-	db, err := models.NewSqliteDB(store.GetDataPath())
-	if err != nil {
-		return err
-	}
+	// Init Schedulers
+	scheduler.Init()
 
 	// Init Controller
-	controllers := controllers.NewController(store, db)
-
-	// Get root path from config
-	var urlpath = "/"
-	if conf.Web.Path != "" {
-		urlpath = conf.Web.Path
-	}
+	controllers.Init()
 
 	// Get new router
-	var handler = mux.NewRouter()
-
-	// Add root route path on router
-	r := handler.PathPrefix(urlpath).Name("rootpath").Subrouter()
-
-	// Add all routes controlleur on router
-	routes.AddRoutes(r, controllers)
+	var handler = routes.Init()
 
 	// Init web server
 	srv := &http.Server{
 		Handler:      handler,
-		Addr:         listenAddress,
+		Addr:         config.GetWebAddr() + ":" + config.GetWebPort(),
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
 	}
 
 	// Show listen port
-	fmt.Printf("Listen Port: \":%v\"\n", conf.Web.Port)
+	fmt.Printf("Listen Port: \":%v\"\n", config.GetWebPort())
 
 	return srv.ListenAndServe()
+}
+
+// CleanUp :
+func CleanUp(c *cli.Context) error {
+	if err := initializedAPP(c.String("conf")); err != nil {
+		panic(err)
+	}
+	clean.CleanupUpload()
+	return nil
+}
+
+
+func initializedAPP(confPath string) error {
+	// Get Conf Arg
+	pathConf, _ := filepath.Abs(confPath)
+
+	// Parse File Config
+	if err := config.ParseConfigFile(pathConf); err != nil {
+		panic(err)
+	}
+
+	// Validate Config Options
+	if err := config.GetConfigOptions().ValidConf(); err != nil {
+		panic(err)
+	}
+
+	// init New Store Files
+	if err := storage.Init(); err != nil {
+		return err
+	}
+
+	// Init connection to dataBase
+	if err := models.InitDB(); err != nil {
+		panic(err)
+	}
+
+	return nil
 }

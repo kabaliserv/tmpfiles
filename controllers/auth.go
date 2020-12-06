@@ -13,8 +13,8 @@ type formAuth struct {
 	Password string `json:"password"`
 }
 
-// GetAuth : Use to Make Token JWT From Password auth
-func (state *Controller) GetAuth(w http.ResponseWriter, r *http.Request) {
+// AuthManager : Use to Make Token JWT From Password auth
+func (state *Controller) AuthManager(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("Content-Type") != "application/json" {
 		renderError(w, http.StatusBadRequest)
 		return
@@ -27,8 +27,6 @@ func (state *Controller) GetAuth(w http.ResponseWriter, r *http.Request) {
 		renderError(w, http.StatusBadRequest)
 		return
 	}
-
-	log.Printf("%#v", form)
 
 	if !state.upload.HasUpload(form.ID) {
 		renderError(w, http.StatusNotFound)

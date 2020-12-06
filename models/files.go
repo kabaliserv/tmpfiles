@@ -3,6 +3,7 @@ package models
 import (
 	"encoding/json"
 	"log"
+	"sync"
 
 	nanoid "github.com/aidarkhanov/nanoid/v2"
 )
@@ -23,15 +24,17 @@ type FileManager struct {
 	db *DB
 }
 
-// NewFileManager : Create new *FileManager that can be used for managing files data.
-func NewFileManager(db *DB) (*FileManager, error) {
-	db.AutoMigrate(&File{})
+var filemgr *FileManager
 
-	filemgr := FileManager{}
-
-	filemgr.db = db
-
-	return &filemgr, nil
+// GetFileManager : Make File Manager if is not create and return this
+func GetFileManager() *FileManager {
+	var once sync.Once
+	once.Do(func() {
+		GetDB().AutoMigrate(&File{})
+		filemgr = &FileManager{}
+		filemgr.db = database
+	})
+	return filemgr
 }
 
 // HasFile : Check if the given fileID exists.

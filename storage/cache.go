@@ -23,15 +23,12 @@ type metadata struct {
 }
 
 // CacheGetMeta : Get meta from Cache directory
-func (state *Store) CacheGetMeta(id string) (*models.File, error) {
+func (state *Stores) CacheGetMeta(id string) (*models.File, error) {
 	data := filedata{}
-	path := id + ".info"
-	src, err := state.cacheGetReaderFile(path)
+	src, err := state.cacheGetReaderFileInfo(id)
 	if err != nil {
-		log.Println(err)
 		return nil, err
 	}
-	log.Println("popo")
 	err = json.Unmarshal(src, &data)
 	if err != nil {
 		log.Println(err)
@@ -52,8 +49,8 @@ func (state *Store) CacheGetMeta(id string) (*models.File, error) {
 }
 
 // Get Reader From file in Cache Directory
-func (state *Store) cacheGetReaderFile(id string) ([]byte, error) {
-	fileReader, err := ioutil.ReadFile(filepath.Join(state.cache, id))
+func (state *Stores) cacheGetReaderFileInfo(id string) ([]byte, error) {
+	fileReader, err := ioutil.ReadFile(filepath.Join(state.cache, id + ".info"))
 	if err != nil {
 		log.Panic(err)
 		return nil, err
@@ -62,26 +59,18 @@ func (state *Store) cacheGetReaderFile(id string) ([]byte, error) {
 }
 
 // CacheFileHasExist : Get if file exist in Cache Store
-func (state *Store) CacheFileHasExist(id string) bool {
+func (state *Stores) CacheFileHasExist(id string) bool {
 	if _, err := os.Stat(filepath.Join(state.cache, id)); err != nil {
+		return false
+	}
+	if _, err := os.Stat(filepath.Join(state.cache, id + ".info")); err != nil {
 		return false
 	}
 	return true
 }
 
 // CacheRemoveFileInfo : Remove file info to cache directory
-func (state *Store) CacheRemoveFileInfo(id string) error {
-	file := id + ".info"
-	path := filepath.Join(state.cache, file)
-	if err := deleteFileToCache(path); err != nil {
-		return err
-	}
-	return nil
+func (state *Stores) CacheRemoveFileInfo(id string) error {
+	return state.deleteFileFromStore("cache", id + ".info")
 }
 
-func deleteFileToCache(path string) error {
-	if err := os.Remove(path); err != nil {
-		return err
-	}
-	return nil
-}

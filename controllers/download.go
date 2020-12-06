@@ -12,8 +12,8 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// GetFiles :
-func (state *Controller) GetFiles(w http.ResponseWriter, r *http.Request) {
+// DownloadManager :
+func (state *Controller) DownloadManager(w http.ResponseWriter, r *http.Request) {
 	log.Println("azeipoiuyteztuiop")
 	vars := mux.Vars(r)
 	uploadID := vars["id"]
@@ -57,11 +57,11 @@ func (state *Controller) GetFiles(w http.ResponseWriter, r *http.Request) {
 
 		file := state.file.FindFile(fileID)
 
-		if !state.store.FileHasExist(fileID) {
+		if !state.stores.FileHasExist(fileID) {
 			renderError(w, http.StatusNotFound)
 			return
 		}
-		src, err := state.store.FileRead(fileID)
+		src, err := state.stores.FileRead(fileID)
 		if err != nil {
 			renderError(w, http.StatusInternalServerError)
 			return
@@ -78,7 +78,7 @@ func (state *Controller) GetFiles(w http.ResponseWriter, r *http.Request) {
 	files := state.file.FindAllFileByUploadID(uploadID)
 
 	for _, file := range files {
-		if !state.store.FileHasExist(file.FileID) {
+		if !state.stores.FileHasExist(file.FileID) {
 			renderError(w, http.StatusInternalServerError)
 			return
 		}
@@ -92,11 +92,11 @@ func (state *Controller) GetFiles(w http.ResponseWriter, r *http.Request) {
 	buffZip := zip.NewWriter(w)
 
 	for _, file := range files {
-		src, err := state.store.FileReadFromBytes(file.FileID)
+		src, err := state.stores.FileReadFromBytes(file.FileID)
 		if err != nil {
 			log.Println(err)
 		}
-		stat, err := state.store.FileGetStat(file.FileID)
+		stat, err := state.stores.FileGetStat(file.FileID)
 		if err != nil {
 			log.Println(err)
 		}

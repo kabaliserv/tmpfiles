@@ -1,7 +1,9 @@
 package models
 
 import (
+	"fmt"
 	"time"
+	"sync"
 
 	nanoid "github.com/aidarkhanov/nanoid/v2"
 	"golang.org/x/crypto/bcrypt"
@@ -11,6 +13,7 @@ import (
 type Upload struct {
 	ID        uint   `gorm:"primaryKey"`
 	UploadID  string `gorm:"uniqueIndex" json:"id"`
+	Active    bool   `gorm:"default:true"`
 	Auth      bool
 	Password  string
 	CreatedAt time.Time
@@ -20,18 +23,20 @@ type Upload struct {
 
 // UploadManager struct
 type UploadManager struct {
-	db *DB
+	db DB
 }
 
-// NewUploadManager : Create new *UploadManager that can be used for managing uploads data.
-func NewUploadManager(db *DB) (*UploadManager, error) {
-	db.AutoMigrate(&Upload{})
+var uploadmgr *UploadManager
 
-	uploadmgr := UploadManager{}
-
-	uploadmgr.db = db
-
-	return &uploadmgr, nil
+// GetUploadManager : Make Upload Manager if is not create and return this
+func GetUploadManager() *UploadManager {
+	var once sync.Once
+	once.Do(func() {
+		GetDB().AutoMigrate(&Upload{})
+		uploadmgr = &UploadManager{}
+		uploadmgr.db = *database
+	})
+	return uploadmgr
 }
 
 // HasUpload : Check if the given uploadID exists.
@@ -49,12 +54,26 @@ func (state *UploadManager) FindUpload(uploadID string) *Upload {
 	return &upload
 }
 
-// FindAllUpload : Find all Uploads
-func (state *UploadManager) FindAllUpload() *[]Upload {
+// FindAllUploads : Find all Uploads
+func (state *UploadManager) FindAllUploads() *[]Upload {
 	uploads := []Upload{}
 	state.db.Model(&Upload{}).Find(&uploads)
 
-	// Sanitize Uplads with remove Password
+	// Sanitize Uploads
+	for _, v := range uploads {
+		v.Password = ""
+	}
+
+	return &uploads
+}
+
+// FindAllActiveUploads : get all upload active
+func (state *UploadManager) FindAllActiveUploads() *[]Upload {
+	uploads := []Upload{}
+
+	state.db.Model(&Upload{}).Where("active=?", true).Find(&uploads)
+
+	// Sanitize Uploads
 	for _, v := range uploads {
 		v.Password = ""
 	}
@@ -67,37 +86,42 @@ func (state *UploadManager) AddUpload(upload *Upload) error {
 	for {
 		uploadID, err := nanoid.GenerateString(nanoid.DefaultAlphabet, 9)
 		if err != nil {
-			panic(err)
+			return err
 		}
 		if state.HasUpload(uploadID) {
 			continue
 		}
-
 		upload.UploadID = uploadID
 		break
 	}
-
-	if upload.Password != "" {
-		upload.Auth = true
-		pwd := upload.Password
-		upload.Password = state.HashPassword(pwd)
+	if upload.Auth {
+		if err := upload.HashPassword(); err != nil {
+			return err
+		}
 	}
 	state.db.Create(&upload)
 	return nil
 }
 
+// DisableUpload : 
+func (state *UploadManager) DisableUpload(id string) error {
+	state.db.Model(&Upload{}).Where("upload_id=?", id).Update("active", false)
+	return nil
+}
+
 // HashPassword : Hash the password (takes a upload as well, it can be used for salting).
-func (state *UploadManager) HashPassword(password string) string {
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+func (state *Upload) HashPassword() error {
+	hash, err := bcrypt.GenerateFromPassword([]byte(state.Password), bcrypt.DefaultCost)
 	if err != nil {
-		panic("Permissions: bcrypt password hashing unsuccessful")
+		return fmt.Errorf("%v %v", "Permissions: bcrypt password hashing unsuccessful ", err)
 	}
-	return string(hash)
+	state.Password = string(hash)
+	return nil
 }
 
 // CheckPassword : compare a hashed password with a possible plaintext equivalent
-func (state *UploadManager) CheckPassword(hashedPassword, password string) bool {
-	if bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password)) != nil {
+func (state *Upload) CheckPassword(password string) bool {
+	if bcrypt.CompareHashAndPassword([]byte(state.Password), []byte(password)) != nil {
 		return false
 	}
 	return true
@@ -110,3 +134,5 @@ func (state *Upload) IsExpire() bool {
 	}
 	return false
 }
+
+//
