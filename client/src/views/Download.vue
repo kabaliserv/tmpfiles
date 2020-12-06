@@ -41,7 +41,7 @@ import NotFound from '@/views/Errors/NotFound.vue';
     NotFound,
   },
 })
-export default class FileView extends Vue {
+export default class DownloadView extends Vue {
   $refs!: {
     inputpassword: HTMLFormElement;
   };

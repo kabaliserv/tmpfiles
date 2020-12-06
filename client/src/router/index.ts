@@ -1,7 +1,7 @@
 import Vue from "vue";
 import VueRouter, { RouteConfig } from "vue-router";
 import UploadView from "../views/Upload.vue"
-import FileView from "../views/File.vue"
+import DownloadView from "../views/Download.vue"
 
 Vue.use(VueRouter);
 
@@ -12,9 +12,9 @@ const routes: Array<RouteConfig> = [
     component: UploadView
   },
   {
-    path: "/file/:id",
+    path: "/download/:id",
     name: "Download",
-    component: FileView
+    component: DownloadView
   }
 ];
 

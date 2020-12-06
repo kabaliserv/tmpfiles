@@ -26,7 +26,7 @@ services:
         environment: 
             - TZ=Europe/Paris
         labels:
-            - "traefik.http.routers.api_tmpfiles.rule=PathPrefix(`/meta`, `/download`, `/d`, `/upload`, `/status`, `/auth`, `/cache`)"
+            - "traefik.http.routers.api_tmpfiles.rule=PathPrefix(`/meta`, `/d`, `/upload`, `/auth`)"
             - "traefik.http.services.api_tmpfiles.loadbalancer.server.port=3000"
 
     web_tmpfiles:
