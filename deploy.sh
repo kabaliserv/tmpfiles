@@ -1,7 +1,8 @@
-systemctl stop tmpfile
+systemctl stop tmpfiles
 cd ./client
 npm install
 npm run build
 cd ..
-go build -o /usr/bin/tmpfile
-systemctl start tmpfile
+rm /usr/bin/tmpfiles
+go build -o /usr/bin/tmpfiles
+systemctl start tmpfiles
