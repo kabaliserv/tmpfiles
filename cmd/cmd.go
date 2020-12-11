@@ -49,7 +49,7 @@ func startApp(c *cli.Context) error {
 	srv := &http.Server{
 		Handler:      handler,
 		Addr:         config.GetWebAddr() + ":" + config.GetWebPort(),
-		WriteTimeout: 15 * time.Second,
+		WriteTimeout: 3 * time.Hour,
 		ReadTimeout:  15 * time.Second,
 	}
 

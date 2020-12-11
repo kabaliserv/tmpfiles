@@ -14,11 +14,8 @@ import (
 
 // DownloadManager :
 func (state *Controller) DownloadManager(w http.ResponseWriter, r *http.Request) {
-	log.Println("azeipoiuyteztuiop")
 	vars := mux.Vars(r)
 	uploadID := vars["id"]
-
-	log.Println(uploadID)
 
 	if !state.upload.HasUpload(uploadID) {
 		renderError(w, http.StatusNotFound)

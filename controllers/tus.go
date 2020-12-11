@@ -25,8 +25,9 @@ func (state *Controller) InitTusServer() http.Handler {
 	store.UseIn(composer)
 
 	config := tusd.Config{
-		BasePath:      tusdURL,
-		StoreComposer: composer,
+		BasePath:                tusdURL,
+		StoreComposer:           composer,
+		RespectForwardedHeaders: true,
 	}
 
 	handler, err := tusd.NewHandler(config)

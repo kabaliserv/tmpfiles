@@ -22,16 +22,16 @@ services:
             - ./:/usr/src/app
         working_dir: /usr/src/app
         ports: 
-            - "4000"
+            - "3000"
         environment: 
             - TZ=Europe/Paris
         labels:
-            - "traefik.http.routers.api_tmpfiles.rule=PathPrefix(`/meta`, `/d`, `/upload`, `/auth`)"
+            - "traefik.http.routers.api_tmpfiles.rule=PathPrefix(`/api`, `/d`)"
             - "traefik.http.services.api_tmpfiles.loadbalancer.server.port=3000"
 
     web_tmpfiles:
         container_name: "web_tmpfiles"
-        image: "node:14.9.0"
+        image: "node:15.4.0-buster"
         restart: unless-stopped
         command: npm run serve
         volumes: 

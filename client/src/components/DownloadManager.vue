@@ -20,7 +20,7 @@ import { Component, Vue, Emit, Prop } from "vue-property-decorator";
 @Component
 export default class DownloadManagerComponent extends Vue {
   @Prop({ required: false })
-  readonly meta!: TMPFiles.FileInfo | undefined;
+  readonly meta!: TMPFiles.FileInfo;
 
   @Emit()
   download() {

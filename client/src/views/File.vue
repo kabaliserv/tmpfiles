@@ -41,7 +41,7 @@ import NotFound from '@/views/Errors/NotFound.vue';
     NotFound,
   },
 })
-export default class DownloadView extends Vue {
+export default class FileView extends Vue {
   $refs!: {
     inputpassword: HTMLFormElement;
   };
@@ -97,7 +97,7 @@ export default class DownloadView extends Vue {
     const link = document.createElement("a")
     link.href = `http://${location.host}/d/${this.uploadID}?f=${this.meta.id}`
     if (this.uploadAuth) {
-      link.href += `&token=${Token}`
+      link.href += `&t=${Token}`
     }
     link.click()
   }

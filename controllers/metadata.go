@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"strings"
 
@@ -40,7 +39,6 @@ func (state *Controller) MetadataManager(w http.ResponseWriter, r *http.Request)
 
 	if upload.Auth {
 		authorization := r.Header.Get("Authorization")
-		log.Println(authorization, "toto")
 		if authorization == "" {
 			renderError(w, http.StatusUnauthorized)
 			return
