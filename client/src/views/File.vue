@@ -94,17 +94,17 @@ export default class FileView extends Vue {
   }
 
   startDownload() {
-    /* const link = document.createElement("a")
-    link.href = `http://${location.host}/d/${this.uploadID}?f=${this.meta.id}`
+    const link = document.createElement("a")
+    link.href = `https://${location.host}/d/${this.uploadID}?f=${this.meta.id}`
     if (this.uploadAuth) {
       link.href += `&t=${Token}`
     }
-    link.click() */
-    let link = `http://${location.host}/d/${this.uploadID}?f=${this.meta.id}`
+    link.click()
+    /* let link = `https://${location.host}/d/${this.uploadID}?f=${this.meta.id}`
     if (this.uploadAuth) {
       link += `&t=${Token}`
     }
-    window.open(link, '_blank');
+    window.open(link, '_blank'); */
   }
 }
 </script>
