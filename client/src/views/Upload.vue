@@ -83,7 +83,7 @@ export default class UploadView extends Vue {
   }
 
   generateLinkUpload(uploadID: string) {
-    this.linkUpload = `http://${location.host}/file/${uploadID}`;
+    this.linkUpload = `${location.protocol}//${location.host}/file/${uploadID}`;
   }
 
   StartUpload(options: TMPFiles.UploadOptions) {
